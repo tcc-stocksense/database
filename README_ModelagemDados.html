@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Modelagem de Dados — Motor Preditivo de Estoque</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e28;
+    --border: #252a38;
+    --border2: #2e3447;
+    --text: #e2e6f0;
+    --muted: #7a839e;
+    --subtle: #3d4560;
+
+    --teal:   #00c4a3;
+    --teal-d: #00856e;
+    --teal-bg: rgba(0,196,163,0.07);
+    --teal-bd: rgba(0,196,163,0.18);
+
+    --purple:   #9b7fff;
+    --purple-d: #6b50d4;
+    --purple-bg: rgba(155,127,255,0.07);
+    --purple-bd: rgba(155,127,255,0.18);
+
+    --coral:   #ff6b6b;
+    --coral-d: #c43b3b;
+    --coral-bg: rgba(255,107,107,0.07);
+    --coral-bd: rgba(255,107,107,0.18);
+
+    --amber:   #f0a830;
+    --amber-d: #b07010;
+    --amber-bg: rgba(240,168,48,0.07);
+    --amber-bd: rgba(240,168,48,0.18);
+
+    --blue:   #4d9fff;
+    --blue-d: #2060c0;
+    --blue-bg: rgba(77,159,255,0.07);
+    --blue-bd: rgba(77,159,255,0.18);
+
+    --green:   #52d68a;
+    --green-d: #259050;
+    --green-bg: rgba(82,214,138,0.07);
+    --green-bd: rgba(82,214,138,0.18);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 56px 48px 40px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #0a0c12 0%, var(--bg) 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(0,196,163,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -60px; right: 80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(155,127,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--teal);
+    background: var(--teal-bg);
+    border: 1px solid var(--teal-bd);
+    border-radius: 4px;
+    padding: 3px 10px;
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+  }
+  .header-badge::before { content: '◆'; font-size: 8px; }
+
+  h1 {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 10px;
+    position: relative;
+  }
+  h1 span { color: var(--teal); }
+
+  .header-sub {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+    max-width: 600px;
+    margin-bottom: 32px;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .stat-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 20px 48px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    padding: 40px 48px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+    max-width: 1400px;
+  }
+
+  /* ── TABLE CARD ── */
+  .table-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .table-card:hover {
+    transform: translateY(-2px);
+  }
+
+  .card-header {
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .table-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .table-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .table-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-weight: 300;
+  }
+  .row-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── FIELDS ── */
+  .fields-list {
+    list-style: none;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: start;
+    gap: 10px;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  .field-row:last-child { border-bottom: none; }
+  .field-row:hover { background: var(--bg3); }
+
+  .field-icon {
+    margin-top: 2px;
+    font-size: 12px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .field-main {}
+  .field-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .field-purpose {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-weight: 300;
+    line-height: 1.5;
+  }
+
+  .field-type {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    white-space: nowrap;
+    align-self: start;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+
+  /* ── BADGES ── */
+  .badge {
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    letter-spacing: 0.03em;
+    flex-shrink: 0;
+  }
+  .badge-pk  { background: rgba(240,168,48,0.15); color: var(--amber); border: 1px solid var(--amber-bd); }
+  .badge-fk  { background: rgba(77,159,255,0.12); color: var(--blue);  border: 1px solid var(--blue-bd); }
+  .badge-new { background: rgba(82,214,138,0.12); color: var(--green); border: 1px solid var(--green-bd); }
+  .badge-idx { background: rgba(155,127,255,0.12); color: var(--purple); border: 1px solid var(--purple-bd); }
+  .badge-fix { background: rgba(255,107,107,0.12); color: var(--coral); border: 1px solid var(--coral-bd); }
+
+  /* ── CARD COLOR VARIANTS ── */
+  .card-teal   { border-top: 2px solid var(--teal); }
+  .card-teal   .table-icon { background: var(--teal-bg); }
+  .card-teal   .table-name { color: var(--teal); }
+  .card-teal:hover { border-color: var(--teal); }
+
+  .card-purple { border-top: 2px solid var(--purple); }
+  .card-purple .table-icon { background: var(--purple-bg); }
+  .card-purple .table-name { color: var(--purple); }
+  .card-purple:hover { border-color: var(--purple); }
+
+  .card-coral  { border-top: 2px solid var(--coral); }
+  .card-coral  .table-icon { background: var(--coral-bg); }
+  .card-coral  .table-name { color: var(--coral); }
+  .card-coral:hover { border-color: var(--coral); }
+
+  .card-amber  { border-top: 2px solid var(--amber); }
+  .card-amber  .table-icon { background: var(--amber-bg); }
+  .card-amber  .table-name { color: var(--amber); }
+  .card-amber:hover { border-color: var(--amber); }
+
+  .card-blue   { border-top: 2px solid var(--blue); }
+  .card-blue   .table-icon { background: var(--blue-bg); }
+  .card-blue   .table-name { color: var(--blue); }
+  .card-blue:hover { border-color: var(--blue); }
+
+  .card-green  { border-top: 2px solid var(--green); }
+  .card-green  .table-icon { background: var(--green-bg); }
+  .card-green  .table-name { color: var(--green); }
+  .card-green:hover { border-color: var(--green); }
+
+  /* ── SECTION SEPARATOR ── */
+  .section-label {
+    grid-column: 1 / -1;
+    padding: 8px 0 4px;
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--subtle);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 4px;
+  }
+
+  /* ── RELATIONS SECTION ── */
+  .relations-section {
+    grid-column: 1 / -1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .relations-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .relations-header h2 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .relations-header .rh-icon {
+    font-size: 16px;
+  }
+  .relations-body {
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px;
+  }
+  .rel-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .rel-item strong {
+    color: var(--text);
+    font-size: 12px;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .rel-arrow { color: var(--teal); margin: 0 4px; }
+
+  /* ── INDEXES SECTION ── */
+  .indexes-section {
+    grid-column: 1 / -1;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .idx-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .idx-item {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--purple-d);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .idx-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--purple);
+    margin-bottom: 4px;
+  }
+  .idx-cols {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .idx-why {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 32px 48px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .footer-left {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .footer-left span { color: var(--teal); }
+  .corrections-pill {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .cpill {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .cpill-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+  .cpill-red   { background: var(--coral-bg); color: var(--coral); border: 1px solid var(--coral-bd); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 700px) {
+    header, main, .legend, footer { padding-left: 20px; padding-right: 20px; }
+    h1 { font-size: 22px; }
+    main { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-badge">motor_estoque_tcc · v2.1 · modelagem de dados</div>
+  <h1>Banco de Dados — <span>Motor Preditivo de Estoque</span></h1>
+  <p class="header-sub">Documentação visual das tabelas, campos e relacionamentos do sistema de otimização preditiva para mercados de bairro.</p>
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-dot" style="background:var(--teal)"></div>
+      <div><span class="stat-num">7</span> tabelas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-dot" style="background:var(--purple)"></div>
+      <div><span class="stat-num">3</span> índices de performance</div>
+    </div>
+    <div class="stat">
+      <div class="stat-dot" style="background:var(--green)"></div>
+      <div><span class="stat-num">4</span> correções aplicadas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-dot" style="background:var(--amber)"></div>
+      <div><span class="stat-num">PostgreSQL</span> · compatível MySQL</div>
+    </div>
+  </div>
+</header>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> PK — Chave primária (identificador único da linha)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> FK — Chave estrangeira (referência a outra tabela)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> NEW — Campo novo adicionado nesta versão</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> IDX — Campo coberto por índice de performance</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--coral)"></div> FIX — Campo corrigido em relação à versão anterior</div>
+</div>
+
+<!-- MAIN GRID -->
+<main>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: estabelecimento -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-teal">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🏪</div>
+        <div>
+          <div class="table-name">estabelecimento</div>
+          <div class="table-desc">Identidade de cada mercadinho cadastrado no sistema</div>
+        </div>
+      </div>
+      <div class="row-count">multi-tenant</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único do estabelecimento. No MVP está fixado como 1, mas a estrutura já suporta múltiplos parceiros futuros.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📝</div>
+        <div class="field-main">
+          <div class="field-name">nome_fantasia</div>
+          <div class="field-purpose">Nome comercial do mercadinho exibido na interface para o lojista.</div>
+        </div>
+        <div class="field-type">VARCHAR(100)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🪪</div>
+        <div class="field-main">
+          <div class="field-name">cnpj</div>
+          <div class="field-purpose">Identificador fiscal único. Garante que o mesmo estabelecimento não seja cadastrado duas vezes (UNIQUE).</div>
+        </div>
+        <div class="field-type">VARCHAR(18)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📍</div>
+        <div class="field-main">
+          <div class="field-name">endereco</div>
+          <div class="field-purpose">Endereço físico do estabelecimento. Útil em expansões futuras para análise geográfica de demanda.</div>
+        </div>
+        <div class="field-type">VARCHAR(200)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🕐</div>
+        <div class="field-main">
+          <div class="field-name">data_cadastro</div>
+          <div class="field-purpose">Registro automático do momento em que o parceiro foi cadastrado. Usado para auditoria.</div>
+        </div>
+        <div class="field-type">TIMESTAMP</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: produto -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-amber">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">📦</div>
+        <div>
+          <div class="table-name">produto</div>
+          <div class="table-desc">Catálogo de itens + resultados persistidos do motor preditivo</div>
+        </div>
+      </div>
+      <div class="row-count">central do sistema</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único do produto. Referenciado por todas as outras tabelas de movimento.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">estabelecimento_id <span class="badge badge-fk">FK</span></div>
+          <div class="field-purpose">Liga o produto ao mercadinho dono dele. Isola o catálogo entre estabelecimentos diferentes.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🏷️</div>
+        <div class="field-main">
+          <div class="field-name">nome</div>
+          <div class="field-purpose">Nome do produto exibido na interface e nos alertas (ex: "Banana Prata kg").</div>
+        </div>
+        <div class="field-type">VARCHAR(100)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🗂️</div>
+        <div class="field-main">
+          <div class="field-name">categoria</div>
+          <div class="field-purpose">Agrupamento do produto (ex: "Hortifruti", "Laticínios"). Usado na curva ABC por categoria.</div>
+        </div>
+        <div class="field-type">VARCHAR(50)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📐</div>
+        <div class="field-main">
+          <div class="field-name">unidade_medida</div>
+          <div class="field-purpose">Define como a quantidade é contada: "kg", "un", "cx". Essencial para a escala das previsões.</div>
+        </div>
+        <div class="field-type">VARCHAR(10)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">💰</div>
+        <div class="field-main">
+          <div class="field-name">preco_custo / preco_venda</div>
+          <div class="field-purpose">Base para calcular Custo das Mercadorias Vendidas (CMV) e impacto financeiro da ruptura no dashboard do gestor.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,2)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📊</div>
+        <div class="field-main">
+          <div class="field-name">estoque_atual</div>
+          <div class="field-purpose">Quantidade em estoque agora. Comparado com ponto_reposicao para decidir se o alerta deve ser disparado.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🅰️</div>
+        <div class="field-main">
+          <div class="field-name">classe_abc</div>
+          <div class="field-purpose">Classificação automática: A (top 20% do faturamento), B (30%) ou C (50%). Desnormalizado por performance — atualizado pelo cron mensal.</div>
+        </div>
+        <div class="field-type">CHAR(1)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📈</div>
+        <div class="field-main">
+          <div class="field-name">desvio_padrao_demanda</div>
+          <div class="field-purpose">Volatilidade histórica da demanda (σ). Insumo direto da fórmula do estoque de segurança: Z × σ × √lead_time.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,4)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🎯</div>
+        <div class="field-main">
+          <div class="field-name">nivel_servico_alvo</div>
+          <div class="field-purpose">Probabilidade alvo de não haver ruptura (padrão: 0.95 = 95%). Define o Z-score usado no cálculo do estoque de segurança.</div>
+        </div>
+        <div class="field-type">DECIMAL(5,2)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🆕</div>
+        <div class="field-main">
+          <div class="field-name">ponto_reposicao <span class="badge badge-new">NEW</span></div>
+          <div class="field-purpose">Output central do motor: D̄ × Lead Time + Estoque de Segurança. Quando estoque_atual ≤ ponto_reposicao, o alerta é gerado. Persistido aqui para o frontend ler sem recalcular.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🆕</div>
+        <div class="field-main">
+          <div class="field-name">estoque_seguranca <span class="badge badge-new">NEW</span></div>
+          <div class="field-purpose">Reserva mínima calculada para absorver variações inesperadas de demanda ou atraso do fornecedor. Componente do ponto de reposição.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🆕</div>
+        <div class="field-main">
+          <div class="field-name">data_ultimo_calculo <span class="badge badge-new">NEW</span></div>
+          <div class="field-purpose">Timestamp do último recálculo pelo motor Python. Exibido na interface para o gestor saber se a previsão está atualizada.</div>
+        </div>
+        <div class="field-type">TIMESTAMP</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: fornecedor -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-blue">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🚚</div>
+        <div>
+          <div class="table-name">fornecedor</div>
+          <div class="table-desc">Lista de contatos de fornecedores por estabelecimento</div>
+        </div>
+      </div>
+      <div class="row-count">contatos privados</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único do fornecedor no sistema.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">estabelecimento_id <span class="badge badge-fk">FK</span></div>
+          <div class="field-purpose">Cada mercadinho tem sua própria lista de fornecedores — isolamento entre estabelecimentos.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🏢</div>
+        <div class="field-main">
+          <div class="field-name">nome</div>
+          <div class="field-purpose">Nome da empresa ou pessoa física que fornece os produtos (ex: "Distribuidora Central Ltda").</div>
+        </div>
+        <div class="field-type">VARCHAR(100)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📞</div>
+        <div class="field-main">
+          <div class="field-name">contato <span class="badge badge-fix">FIX</span></div>
+          <div class="field-purpose">Telefone ou e-mail do fornecedor. Corrigido de "contat" (typo na versão anterior) para "contato".</div>
+        </div>
+        <div class="field-type">VARCHAR(50)</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: produto_fornecedor -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-purple">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🔀</div>
+        <div>
+          <div class="table-name">produto_fornecedor</div>
+          <div class="table-desc">Relação N:N com dados logísticos por par produto-fornecedor</div>
+        </div>
+      </div>
+      <div class="row-count">chave composta</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">produto_id + fornecedor_id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Chave composta — a combinação dos dois forma o identificador único. Um produto pode ter múltiplos fornecedores e vice-versa.</div>
+        </div>
+        <div class="field-type">INT + INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">⏱️</div>
+        <div class="field-main">
+          <div class="field-name">lead_time_medio</div>
+          <div class="field-purpose">Tempo médio em dias entre o pedido e a entrega deste fornecedor para este produto. Insumo direto da fórmula: PR = D̄ × lead_time + ES.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">〰️</div>
+        <div class="field-main">
+          <div class="field-name">variabilidade_lead_time</div>
+          <div class="field-purpose">Desvio padrão do lead_time (σ_LT). Fornecedores mais imprevisíveis aumentam o estoque de segurança necessário.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,4)</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: venda -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-teal">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🧾</div>
+        <div>
+          <div class="table-name">venda</div>
+          <div class="table-desc">Série temporal de vendas — principal insumo do motor de IA</div>
+        </div>
+      </div>
+      <div class="row-count">maior volume</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único de cada registro de venda (item a item, não por transação).</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">estabelecimento_id <span class="badge badge-fk">FK</span> <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Permite filtrar vendas por loja no dashboard. Faz parte do índice composto para performance do motor.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">produto_id <span class="badge badge-fk">FK</span> <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Liga a venda ao produto vendido. Junto com estabelecimento_id e data_hora forma o índice principal do motor.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📅</div>
+        <div class="field-main">
+          <div class="field-name">data_hora <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Carimbo de data e hora da venda. Base de toda a série temporal — o Python agrupa por DATE(data_hora) para calcular demanda diária.</div>
+        </div>
+        <div class="field-type">TIMESTAMP</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔢</div>
+        <div class="field-main">
+          <div class="field-name">quantidade</div>
+          <div class="field-purpose">Unidades vendidas neste registro. Somado por dia, forma a variável "y" que alimenta os modelos Holt-Winters e Prophet.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🏷️</div>
+        <div class="field-main">
+          <div class="field-name">is_promocional</div>
+          <div class="field-purpose">Flag que marca se a venda ocorreu em período promocional. Passada ao Prophet como regressor externo para isolar picos de promoção da sazonalidade real.</div>
+        </div>
+        <div class="field-type">BOOLEAN</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">💵</div>
+        <div class="field-main">
+          <div class="field-name">valor_venda</div>
+          <div class="field-purpose">Receita gerada por este registro. Base do cálculo de faturamento para a curva ABC e do indicador de impacto financeiro da ruptura.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,2)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">❌</div>
+        <div class="field-main">
+          <div class="field-name">venda_perdida_estimada</div>
+          <div class="field-purpose">Estimativa de receita perdida por ruptura (produto em falta quando havia demanda). Alimenta o KPI "Índice de Ruptura" no dashboard do gestor.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,2)</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: perda_estoque -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-coral">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🗑️</div>
+        <div>
+          <div class="table-name">perda_estoque</div>
+          <div class="table-desc">Módulo ESG — rastreio de desperdício separado das vendas reais</div>
+        </div>
+      </div>
+      <div class="row-count">ODS 12</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único de cada evento de perda registrado.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">estabelecimento_id <span class="badge badge-fk">FK</span> <span class="badge badge-fix">FIX</span></div>
+          <div class="field-purpose">FK declarada corretamente (estava sem constraint na versão anterior). Fixo em 1 no MVP, mas com integridade referencial garantida pelo banco.</div>
+        </div>
+        <div class="field-type">INT DEFAULT 1</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">produto_id <span class="badge badge-fk">FK</span> <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Qual produto foi perdido. Indexado junto com data_perda para o relatório ESG mensal.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔢</div>
+        <div class="field-main">
+          <div class="field-name">quantidade</div>
+          <div class="field-purpose">Unidades descartadas. Somado por período para o KPI "Redução de Desperdício" e para cálculo do prejuízo financeiro (quantidade × preco_custo).</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📋</div>
+        <div class="field-main">
+          <div class="field-name">motivo</div>
+          <div class="field-purpose">Causa da perda: "Vencimento" (alimenta o dashboard ESG), "Avaria" (danos físicos) ou "Furto" (quebra operacional). Segrega tipos distintos de perda para análise.</div>
+        </div>
+        <div class="field-type">VARCHAR(50)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📅</div>
+        <div class="field-main">
+          <div class="field-name">data_perda <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Quando a perda foi registrada. Indexado para consultas de relatório ESG por período (mensal/trimestral).</div>
+        </div>
+        <div class="field-type">TIMESTAMP</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- TABELA: previsao -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="table-card card-green">
+    <div class="card-header">
+      <div class="card-header-left">
+        <div class="table-icon">🔮</div>
+        <div>
+          <div class="table-name">previsao</div>
+          <div class="table-desc">Persiste resultados do motor Python — coração dos alertas</div>
+        </div>
+      </div>
+      <div class="row-count">NEW · v2.1</div>
+    </div>
+    <ul class="fields-list">
+      <li class="field-row">
+        <div class="field-icon">🔑</div>
+        <div class="field-main">
+          <div class="field-name">id <span class="badge badge-pk">PK</span></div>
+          <div class="field-purpose">Identificador único de cada previsão gerada. Uma nova linha é inserida a cada execução do cron mensal por produto.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">estabelecimento_id <span class="badge badge-fk">FK</span></div>
+          <div class="field-purpose">Isola as previsões por estabelecimento — cada loja vê apenas seus próprios alertas.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔗</div>
+        <div class="field-main">
+          <div class="field-name">produto_id <span class="badge badge-fk">FK</span> <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Para qual produto esta previsão foi gerada. Indexado com data_previsao para consultas do endpoint de alertas.</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🤖</div>
+        <div class="field-main">
+          <div class="field-name">modelo_usado</div>
+          <div class="field-purpose">"holt_winters" ou "prophet" — registra qual modelo gerou esta previsão. Essencial para a comparação acadêmica de performance entre os modelos.</div>
+        </div>
+        <div class="field-type">VARCHAR(20)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📅</div>
+        <div class="field-main">
+          <div class="field-name">data_previsao <span class="badge badge-idx">IDX</span></div>
+          <div class="field-purpose">Para qual data futura esta quantidade foi prevista. Permite consultar "qual era a previsão para o dia X" para validação posterior com dados reais.</div>
+        </div>
+        <div class="field-type">DATE</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🔢</div>
+        <div class="field-main">
+          <div class="field-name">quantidade_prevista</div>
+          <div class="field-purpose">Demanda diária média prevista pelo modelo (ŷ). Base de todo o cálculo downstream: ponto de reposição, dias até ruptura e alertas.</div>
+        </div>
+        <div class="field-type">DECIMAL(10,4)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">🕐</div>
+        <div class="field-main">
+          <div class="field-name">data_geracao</div>
+          <div class="field-purpose">Quando o motor Python gerou esta previsão. Exibido na interface para o gestor saber se o dado está atualizado.</div>
+        </div>
+        <div class="field-type">TIMESTAMP</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">📉</div>
+        <div class="field-main">
+          <div class="field-name">mape / rmse</div>
+          <div class="field-purpose">Métricas de acurácia do modelo nesta execução. Armazenadas aqui para o dashboard técnico comparar Holt-Winters vs Prophet ao longo do tempo.</div>
+        </div>
+        <div class="field-type">DECIMAL(8,4)</div>
+      </li>
+      <li class="field-row">
+        <div class="field-icon">⏳</div>
+        <div class="field-main">
+          <div class="field-name">dias_ate_ruptura <span class="badge badge-new">NEW</span></div>
+          <div class="field-purpose">Campo-chave dos alertas: quantos dias até o estoque atual chegar no ponto de reposição. É este número que aparece na tela: "🟡 Banana — repor em 15 dias".</div>
+        </div>
+        <div class="field-type">INT</div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- RELACIONAMENTOS -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="relations-section">
+    <div class="relations-header">
+      <span class="rh-icon">🔗</span>
+      <h2>Relacionamentos (Foreign Keys)</h2>
+    </div>
+    <div class="relations-body">
+      <div class="rel-item">
+        <strong>produto → estabelecimento</strong>
+        produto.estabelecimento_id <span class="rel-arrow">→</span> estabelecimento.id<br>
+        Cada produto pertence a um mercadinho específico.
+      </div>
+      <div class="rel-item">
+        <strong>fornecedor → estabelecimento</strong>
+        fornecedor.estabelecimento_id <span class="rel-arrow">→</span> estabelecimento.id<br>
+        Lista de fornecedores é privada por estabelecimento.
+      </div>
+      <div class="rel-item">
+        <strong>produto_fornecedor → produto</strong>
+        produto_fornecedor.produto_id <span class="rel-arrow">→</span> produto.id<br>
+        Associa o lead time ao produto correto.
+      </div>
+      <div class="rel-item">
+        <strong>produto_fornecedor → fornecedor</strong>
+        produto_fornecedor.fornecedor_id <span class="rel-arrow">→</span> fornecedor.id<br>
+        Um produto pode ter N fornecedores alternativos.
+      </div>
+      <div class="rel-item">
+        <strong>venda → produto</strong>
+        venda.produto_id <span class="rel-arrow">→</span> produto.id<br>
+        Cada linha de venda referencia o produto vendido.
+      </div>
+      <div class="rel-item">
+        <strong>venda → estabelecimento</strong>
+        venda.estabelecimento_id <span class="rel-arrow">→</span> estabelecimento.id<br>
+        Isola o histórico de vendas por loja.
+      </div>
+      <div class="rel-item">
+        <strong>perda_estoque → produto</strong>
+        perda_estoque.produto_id <span class="rel-arrow">→</span> produto.id<br>
+        Separa o desperdício da venda real no histórico.
+      </div>
+      <div class="rel-item">
+        <strong>perda_estoque → estabelecimento</strong>
+        perda_estoque.estabelecimento_id <span class="rel-arrow">→</span> estabelecimento.id<br>
+        FK declarada corretamente na v2.1 (correção aplicada).
+      </div>
+      <div class="rel-item">
+        <strong>previsao → produto</strong>
+        previsao.produto_id <span class="rel-arrow">→</span> produto.id<br>
+        Liga cada previsão ao produto previsto.
+      </div>
+      <div class="rel-item">
+        <strong>previsao → estabelecimento</strong>
+        previsao.estabelecimento_id <span class="rel-arrow">→</span> estabelecimento.id<br>
+        Cada loja vê apenas seus próprios alertas e previsões.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ÍNDICES -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="indexes-section">
+    <div class="relations-header">
+      <span class="rh-icon">⚡</span>
+      <h2>Índices de Performance</h2>
+    </div>
+    <div class="idx-body">
+      <div class="idx-item">
+        <div class="idx-name">idx_venda_produto_data</div>
+        <div class="idx-cols">ON venda(estabelecimento_id, produto_id, data_hora)</div>
+        <div class="idx-why">Cobre a query principal do motor de IA: filtra por loja + produto e ordena por data em uma única operação. Sem este índice, cada execução do Python faria um full-scan na maior tabela do sistema. A ordem dos campos (estabelecimento → produto → data) é intencional e otimizada para a query de série temporal.</div>
+      </div>
+      <div class="idx-item">
+        <div class="idx-name">idx_previsao_produto</div>
+        <div class="idx-cols">ON previsao(estabelecimento_id, produto_id, data_previsao)</div>
+        <div class="idx-why">Cobre o endpoint GET /alertas do Spring Boot: busca todas as previsões de uma loja com dias_ate_ruptura abaixo de um limite. Sem este índice, o endpoint degradaria a cada novo produto cadastrado.</div>
+      </div>
+      <div class="idx-item">
+        <div class="idx-name">idx_perda_produto_data</div>
+        <div class="idx-cols">ON perda_estoque(produto_id, data_perda)</div>
+        <div class="idx-why">Cobre o relatório ESG mensal: soma as perdas por produto em um período. O cron do Spring Boot executa este relatório uma vez ao mês — o índice garante que não impacte o desempenho geral do sistema.</div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    TCC · Sistemas de Informação · <span>Motor Preditivo de Estoque v2.1</span><br>
+    Duarte · Sanchez · Faustino · Primon · Pinto
+  </div>
+  <div class="corrections-pill">
+    <span class="cpill cpill-green">+ tabela previsao</span>
+    <span class="cpill cpill-green">+ ponto_reposicao em produto</span>
+    <span class="cpill cpill-green">+ 3 índices de performance</span>
+    <span class="cpill cpill-red">fix: FK perda_estoque</span>
+    <span class="cpill cpill-red">fix: typo contato</span>
+  </div>
+</footer>
+
+</body>
+</html>
