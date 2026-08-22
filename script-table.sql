@@ -54,7 +54,6 @@ CREATE TABLE venda (
     quantidade INT NOT NULL,
     is_promocional BOOLEAN DEFAULT FALSE,
     valor_venda DECIMAL(10,2),
-    venda_perdida_estimada DECIMAL(10,2),
     FOREIGN KEY (estabelecimento_id) REFERENCES estabelecimento(id),
     FOREIGN KEY (produto_id) REFERENCES produto(id)
 );
